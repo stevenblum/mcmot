@@ -1,0 +1,13 @@
+# dataset.yaml
+
+# The root directory for the dataset.
+path: /home/scblum/Projects/testbed_cv/dataset
+
+# Specify the directories containing your training and validation images.
+# You can use a list of paths here.
+train: ./train.txt
+val: ./val.txt
+
+# Define the number of classes and their names.
+nc: 6
+names: ['red_square', 'red_circle', 'green_square', 'green_circle', 'blue_square', 'blue_circle']

@@ -1,0 +1,57 @@
+# YOLO Part Detection Configuration
+# This file contains all the detection and tracking settings for the webcam part detection system
+
+# Model Configuration
+model:
+  # Auto-detect latest model or specify path
+  auto_detect: true
+  # path: "yolo_training/specific_model/weights/best.pt"  # Override auto-detection if needed
+
+# Camera Configuration
+cameras:
+  indices: [5, 7]  # Camera indices to use
+  resolution:
+    width: 640
+    height: 480
+  fps: 30
+  buffer_size: 1  # Minimize buffer for reduced latency
+  format: "YUYV"  # Video format (YUYV uncompressed - eliminates JPEG warnings)
+
+# Detection Thresholds
+detection:
+  confidence_threshold: 0.05      # Main confidence threshold for solid detections
+  nms_iou_threshold: 0.45         # NMS IoU threshold for duplicate suppression
+  
+# Tracking Configuration
+tracking:
+  enable: true
+  tracker_type: "bytetrack.yaml"    # Options: bytetrack.yaml, botsort.yaml
+  persist_frames: 60                # Frames to persist tracks (2 seconds at 30fps)
+  independent_cameras: true         # Use separate model instances for each camera
+
+# Class Colors (BGR format for OpenCV)
+class_colors:
+  red_square: [0, 0, 255]      # Red
+  red_circle: [0, 100, 255]    # Orange-red  
+  green_square: [0, 255, 0]    # Green
+  green_circle: [0, 255, 100]  # Light green
+  blue_square: [255, 0, 0]     # Blue
+  blue_circle: [255, 100, 0]   # Light blue
+
+# Display Settings
+display:
+  show_confidence: true
+  show_fps: true
+  fps_smoothing: 0.9  # For FPS calculation smoothing (0.0-1.0)
+  
+# Output Settings  
+output:
+  directory: "webcam_detections"
+  save_format: "jpg"
+  
+# UI Controls (informational)
+controls:
+  quit: "q"
+  save_frame: "s" 
+  toggle_confidence: "c"
+  toggle_fps: "f"

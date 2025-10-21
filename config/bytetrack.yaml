@@ -1,0 +1,21 @@
+# ByteTrack Configuration for Multi-Camera Object Tracking
+# This file configures the ByteTrack algorithm parameters for optimal tracking performance
+
+# Tracker type - ByteTrack is optimized for real-time multi-object tracking
+tracker_type: bytetrack  # tracker type, ['botsort', 'bytetrack']
+
+# Detection confidence thresholds
+track_high_thresh: 0.15  # threshold for the first association (high confidence detections)
+track_low_thresh: 0.05    # threshold for the second association (low confidence detections)
+new_track_thresh: 0.15   # threshold for init new track if the detection does not match any tracks
+
+# Track lifecycle management
+track_buffer: 30         # buffer to calculate the time when to remove tracks (frames)
+
+# Matching parameters
+match_thresh: 0.8        # threshold for matching tracks (IoU threshold)
+fuse_score: True         # Whether to fuse confidence scores with the iou distances before matching
+
+# Additional ByteTrack specific parameters (optional)
+# frame_rate: 30         # expected frame rate for temporal calculations
+# lambda: 0.98           # exponential moving average parameter for track scores

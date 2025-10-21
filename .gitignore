@@ -1,0 +1,12 @@
+*.pt
+
+/.venv
+/.venv5
+/__pycache__
+/dataset
+/raw_images
+/saved_models
+
+# All yolo .pt files
+
+*/*.pt
