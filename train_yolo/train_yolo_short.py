@@ -12,11 +12,64 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from datetime import datetime
+import time
 from glob import glob
 import random
+import pandas as pd
 from sklearn.model_selection import train_test_split
 import torch
 import gc
+import xml.etree.ElementTree as ET
+
+def parse_cvat_xml(xml_file_path):
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
+
+    annotations = {}
+
+    for image_tag in root.findall('image'):
+        image_data = {
+            'id': image_tag.get('id'),
+            'name': image_tag.get('name'),
+            'width': image_tag.get('width'),
+            'height': image_tag.get('height'),
+            'task': image_tag.get('task_id')
+        }
+
+        print(f"Image {image_data['name']} has task {image_data['task']}")
+
+        annotations[image_data['name'].split('.')[0]] = image_data
+
+    '''
+        for box_tag in image_tag.findall('box'):
+            box_data = {
+                'type': 'box',
+                'label': box_tag.get('label'),
+                'xtl': float(box_tag.get('xtl')),
+                'ytl': float(box_tag.get('ytl')),
+                'xbr': float(box_tag.get('xbr')),
+                'ybr': float(box_tag.get('ybr'))
+            }
+            image_data['shapes'].append(box_data)
+
+        for polygon_tag in image_tag.findall('polygon'):
+            polygon_data = {
+                'type': 'polygon',
+                'label': polygon_tag.get('label'),
+                'points': polygon_tag.get('points') # String of "x1,y1;x2,y2;..."
+            }
+            image_data['shapes'].append(polygon_data)
+
+        # Add other shape types (e.g., polyline, points) as needed
+    '''
+
+        
+    return annotations
+
+# Example usage:
+# cvat_annotations = parse_cvat_xml('path/to/your/cvat_annotations.xml')
+# print(cvat_annotations[0]) # Print data for the first image
+
 
 # --- Configuration ---
 yolo_train_path = '/home/scblum/Projects/testbed_cv'
@@ -27,20 +80,43 @@ train_split_ratio = 0.8  # 80% for training, 20% for validation
 print(f"Dataset path: {dataset_path}")
 print(f"Images directory: {images_dir}")
 
+# Open cvat labels that are in ./dataset/annotations.xml
+cvat_annotations_path = os.path.join(dataset_path, 'annotations.xml')
+cvat_annotations = parse_cvat_xml(cvat_annotations_path)
+
+
 # --- 1. Find all image files that have a corresponding label ---
 image_paths = []
 for image_file in glob(os.path.join(images_dir, '*.*')):
     image_name = os.path.splitext(os.path.basename(image_file))[0]
     label_file = os.path.join(labels_dir, f'{image_name}.txt')
-    
+
     # Check if a non-empty label file exists
     if os.path.exists(label_file) and os.path.getsize(label_file) > 0:
         image_paths.append(image_file)
 
+# Load the data_info.csv as a pandas DataFrame
+data_info_path = os.path.join(yolo_train_path,'train_yolo','dataset_info.csv')
+data_info = pd.read_csv(data_info_path)
+
+# Filter image_paths based on data_info 'Use' column and "Percentage"
+filtered_image_paths = []
+for img_path in image_paths:
+    img_name = os.path.basename(img_path).split('.')[0]
+    task_number = cvat_annotations[img_name]['task']
+    print(task_number)
+    row = data_info[data_info['Task'].to_numpy().astype(int) == int(task_number)]
+    print(row)
+    if not row.empty and row.iloc[0]['Use'] == 1:
+        percentage = row.iloc[0]['Percent']
+        # Randomly decide to include based on percentage
+        if random.uniform(0,1) <= percentage:
+            filtered_image_paths.append(img_path)
+
 print(f"Found {len(image_paths)} images with annotations.")
 
 # --- 2. Split the paths into training and validation sets ---
-train_paths, val_paths = train_test_split(image_paths, test_size=1-train_split_ratio, random_state=42)
+train_paths, val_paths = train_test_split(filtered_image_paths, test_size=1-train_split_ratio, random_state=42)
 
 # --- 3. Save the lists to text files ---
 with open(os.path.join(dataset_path, 'train.txt'), 'w') as f:
@@ -130,3 +206,6 @@ results = model.train(**training_args)
 # Save training args
 with open('training_args.json', 'w') as f:
     json.dump(training_args, f)
+
+
+

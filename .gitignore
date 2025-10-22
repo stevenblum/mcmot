@@ -1,3 +1,4 @@
+# YOLO Weight files
 *.pt
 
 /.venv
@@ -6,7 +7,4 @@
 /dataset
 /raw_images
 /saved_models
-
-# All yolo .pt files
-
-*/*.pt
+/dataset_archive*

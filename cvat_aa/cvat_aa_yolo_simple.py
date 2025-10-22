@@ -25,7 +25,7 @@ cvat-cli function create-native "YOLOv11 Custom" \
 #MODEL_PATH = "/home/scblum/Projects/testbed_cv/train_yolo/saved_models/part_detection_25_10_07_14_28/weights/best.pt"   # or specify a path
 MODEL_PATH = "LATEST"
 
-CONFIDENCE_THRESHOLD = 0.2
+CONFIDENCE_THRESHOLD = 0.1
 
 
 import PIL.Image
@@ -49,7 +49,7 @@ model = YOLO(model_weights_path)
 model.info()
 model.conf = CONFIDENCE_THRESHOLD  # Confidence threshold
 model.classes = [0, 1, 2, 3, 4, 5]
-tracker = sv.ByteTrack(frame_rate=2)
+tracker = sv.ByteTrack(frame_rate=5)
 smoother = sv.DetectionsSmoother()
 
 # Build the label specification for CVAT

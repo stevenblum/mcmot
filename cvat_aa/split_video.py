@@ -51,12 +51,7 @@ def split_video(input_path, num_segments, output_dir=None):
     # Split video into segments
     for i in range(num_segments):
         start_time = i * segment_duration
-        
-        # Create individual folder for each segment
-        segment_folder = output_dir / f"segment_{i+1:03d}"
-        segment_folder.mkdir(exist_ok=True)
-        
-        output_file = segment_folder / f"{input_path.stem}_segment_{i+1:03d}.mp4"
+        output_file = output_dir / f"{input_path.stem}_segment_{i+1:03d}.mp4"
         
         cmd = [
             'ffmpeg', '-i', str(input_path),
@@ -67,7 +62,7 @@ def split_video(input_path, num_segments, output_dir=None):
             str(output_file)
         ]
         
-        print(f"Creating segment {i+1}/{num_segments}: {segment_folder.name}/{output_file.name}")
+        print(f"Creating segment {i+1}/{num_segments}: {output_file.name}")
         
         try:
             subprocess.run(cmd, check=True, capture_output=True)
