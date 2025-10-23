@@ -49,10 +49,11 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_1000)
 detector = cv2.aruco.ArucoDetector(aruco_dict)
 
 class ModelPlus:
-    def __init__(self, model_path, tracking_yaml_path):
+    def __init__(self, model_path, tracking_yaml_path, confidence_threshold=0.25):
         self.model = YOLO(model_path,verbose=False)
         self.tracker = sv.ByteTrack(frame_rate=25)
-        self.smoother = sv.DetectionsSmoother()
+        #self.smoother = sv.DetectionsSmoother()
+        self.confidence_threshold = confidence_threshold
         colors = sv.ColorPalette.from_hex(["#ff0303",  "#ef16ae", "#0F8807", "#4af84a", "#003CFF", "#49d2f8"])
         self.annotator_tracks = sv.BoxAnnotator(color=colors, thickness=2)
         self.annotator_detections = sv.BoxAnnotator(color=colors, thickness=1)
@@ -61,25 +62,25 @@ class ModelPlus:
         self.frame_annotated = None
         self.detections = None
         self.detections_tracked = None
-        self.detections_smoothed = None
+        #self.detections_smoothed = None
         self.frame = None
         self.frame_annotated = None
 
     def detect_track_and_annotate(self, frame):
-        result = self.model(frame, conf=0.05, iou=.7, agnostic_nms=True)[0]
+        result = self.model(frame, conf=self.confidence_threshold, iou=.7, agnostic_nms=True)[0]
         detections = sv.Detections.from_ultralytics(result)
         detections_tracked = self.tracker.update_with_detections(detections)
-        detections_smoothed = self.smoother.update_with_detections(detections_tracked)
+        #detections_smoothed = self.smoother.update_with_detections(detections_tracked)
         self.frame = frame
-        af = self.annotator_tracks.annotate(frame.copy(), detections_smoothed)
-        af = self.annotator_detections.annotate(af, detections_smoothed)
+        af = self.annotator_tracks.annotate(frame.copy(), detections_tracked)
+        af = self.annotator_detections.annotate(af, detections_tracked)
         af = self.annotator_track_tails.annotate(af, detections_tracked)
 
         self.frame = frame
         self.frame_annotated = af
         self.detections = detections
         self.detections_tracked = detections_tracked
-        self.detections_smoothed = detections_smoothed
+        #self.detections_smoothed = detections_smoothed
 
 class Camera:    
     def __init__(self, camera_number, camera_device_id, camera_name, model_path, tracker_yaml_path, aruco_positions):
@@ -87,6 +88,8 @@ class Camera:
         self.camera_device_id = camera_device_id
         print(f"    Opening Camera on Port {camera_device_id}")
         self.cap = cv2.VideoCapture(camera_device_id)
+        self.frame = None
+        self.frame_capture_time = None
         self.camera_name = camera_name
         self.mtx = None
         self.dist = None
@@ -184,12 +187,17 @@ class Camera:
         # Calculate the projection matrix
         self.projMatrix = np.dot(self.mtx, Rt)
 
-    def detect_track_and_annotate(self):
+
+    def capture_frame(self):
         ret, frame = self.cap.read()
-        if not ret:
-            return None, None
-        
-        self.model_plus.detect_track_and_annotate(frame)
+        if ret:
+            self.frame = frame
+        else:
+            self.frame = None
+        self.frame_capture_time = time.time()
+
+    def detect_track_and_annotate(self):
+        self.model_plus.detect_track_and_annotate(self.frame) 
 
         if self.aruco_positions is not None:
             self.model_plus.frame_annotated = self.draw_axis(self.model_plus.frame_annotated)
@@ -256,12 +264,14 @@ class MCMOTracker:
             print("    Completed Initialization")
         
     def update_camera_tracks(self):
+        self.cameras[0].capture_frame()
+        self.cameras[1].capture_frame()
         self.cameras[0].detect_track_and_annotate()
         self.cameras[1].detect_track_and_annotate()
 
     def match_global_tracks(self):
-        cam0_tracks = self.cameras[0].model_plus.detections_smoothed.tracker_id.tolist()
-        cam1_tracks = self.cameras[1].model_plus.detections_smoothed.tracker_id.tolist()
+        cam0_tracks = self.cameras[0].model_plus.detections_tracked.tracker_id.tolist()
+        cam1_tracks = self.cameras[1].model_plus.detections_tracked.tracker_id.tolist()
 
         if len(cam0_tracks) == 0 and len(cam1_tracks) ==     0:
             self.global_tracks = {}
@@ -275,9 +285,9 @@ class MCMOTracker:
 
         # Build Cost Matrix with Reprojection Error
         #################################################
-        xyxy = self.cameras[0].model_plus.detections_smoothed.xyxy
+        xyxy = self.cameras[0].model_plus.detections_tracked.xyxy
         centers0 = [( (box[0]+box[2])/2, (box[1]+box[3])/2 ) for box in xyxy]
-        xyxy = self.cameras[1].model_plus.detections_smoothed.xyxy
+        xyxy = self.cameras[1].model_plus.detections_tracked.xyxy
         centers1 = [( (box[0]+box[2])/2, (box[1]+box[3])/2 ) for box in xyxy]
 
         
@@ -319,14 +329,14 @@ class MCMOTracker:
         unmatched_1 = cam1_tracks.copy()
         print("cam0 tracks:", cam0_tracks)
         print("cam1 tracks:", cam1_tracks)
-        while cost < 15:
+        while cost < 35:
             print(costs)
             min_row, min_col = np.unravel_index(np.argmin(costs), costs.shape)
             print("Min Row, Min Col:", min_row, min_col)
             print(f"Selected min cost: {costs[min_row, min_col]}")
             #print(f"    for tracks {cam0_tracks[min_row]} and {cam1_tracks[min_col]}")
             cost = costs[min_row, min_col]
-            if cost < 15:
+            if cost < 35:
                 print(cam0_tracks)
                 print(cam1_tracks)
                 tid0 = cam0_tracks[min_row]
@@ -353,8 +363,7 @@ class MCMOTracker:
         for match, point_3d in self.global_tracks.items():
             print(match, point_3d)
             if match[0] is not None and match[1] is not None:
-                point_3d_reshaped = point_3d.reshape(-1, 1)
-                cam0_point = cv2.projectPoints(point_3d_reshaped, self.cameras[0].r, self.cameras[0].t, self.cameras[0].mtx, self.cameras[0].dist)[0].flatten()
+                cam0_point = cv2.projectPoints(point_3d, self.cameras[camera_number].r, self.cameras[camera_number].t, self.cameras[camera_number].mtx, self.cameras[camera_number].dist)[0].flatten()
                 cv2.circle(annotated_frame, (int(cam0_point[0]), int(cam0_point[1])), 5, (0,0,255), -1)
                 p3d = point_3d.flatten()
                 cv2.putText(annotated_frame, f"{p3d[0]:.1f}, {p3d[1]:.1f}, {p3d[2]:.1f}", (int(cam0_point[0]), int(cam0_point[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
