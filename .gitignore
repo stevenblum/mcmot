@@ -1,5 +1,6 @@
 # YOLO Weight files
 *.pt
+*__pycache__*
 
 /.venv
 /.venv5
