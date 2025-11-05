@@ -1,42 +1,6 @@
-'''Organization
-MultiCameraTracker
-    1) ModelPlus
-        a) Model-Detection
-        b) Model-Depth
-        c) Tracker
-        d) Smoother
-        e) Annotators
-   1) Cameras
-       a) Camera_Number
-       b) Camera_Device_ID
-       c) Intrinsics (MTX, DIST
-       d) Extrinsics (R, T, ProjMatrix)
-       b) ModelPlus
-       d) Camera Tracks (CURRENTLY UNUSED)
-    2) Global Tracks (object)
-        a) Global Track ID
-        b) Camera Tracks (dict, CameraID:TrackID, None for no match)
-    3) MCMOTracker
-       a) Cameras (dict)
-       b) Global Tracks (dict)
-       c) Cost Matrix
-       d) Assignment Solver
-
-
-Heavily uses the ultralytics Supervision library because of its tracking and annotations functions
-Some important items that are not captured in the online documentation:
-
-Format of sv.Detections, all properties are stored in lists, length of n detections:
-    xyxy: [[x1,y1,x2,y2],...]  # list of bounding boxes
-    confidence: [conf1, conf2,...]  # list of confidences
-    class_id: [cls1, cls2,...]  # list of class IDs
-    tracker_id: [tid1, tid2,...]  # list of tracker IDs (after tracking)
-    data: a dictonary of any other user data, not currently used
-
-
-
-'''
-
+from .Camera import Camera
+from .ModelPlus import ModelPlus
+from . import MCMOTUtils
 import time
 import numpy as np
 import cv2
@@ -44,6 +8,7 @@ from ultralytics import YOLO
 import supervision as sv
 from config.aruco_config import ArucoConfig
 
+<<<<<<< HEAD:MCMOTracker.py
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_1000)
 
 detector = cv2.aruco.ArucoDetector(aruco_dict)
@@ -237,13 +202,16 @@ class MultiCameraTrack:
 
         self.last_camera_match = match
 
+=======
+>>>>>>> 0c44626d (Reorg, Split Frame/Detect/Annotate, Overhead Plot):build/lib/mcmot/MCMOTracker.py
 class MCMOTracker:
-    def __init__(self, model_path,camera_device_ids,camera_names,tracker_yaml_path, aruco_positions):
+    def __init__(self, model_path,camera_device_ids,camera_names,confidence_threshold,tracker_yaml_path, aruco_positions):
         self.model_path = model_path
         self.tracker_yaml_path = tracker_yaml_path
         self.camera_device_ids = camera_device_ids
         self.camera_names = camera_names
         self.aruco_positions = aruco_positions
+        self.confidence_threshold = confidence_threshold
         self.cameras = {}  # {camera_id: Camera}
         self.global_tracks = {}
         self.camera_tracks = {}  # {ctid: {track_id: CameraTrack}}
@@ -260,14 +228,25 @@ class MCMOTracker:
         for camera_number, camera_device_id in enumerate(self.camera_device_ids):
             print(f"Initializing Camera {camera_number} - Port {camera_device_id} - {self.camera_names[camera_number]}")
             camera_name = self.camera_names[camera_number]
-            self.cameras[camera_number] = Camera(camera_number, camera_device_id, camera_name, self.model_path, self.tracker_yaml_path, aruco_positions=True)
+            self.cameras[camera_number] = Camera(camera_number, camera_device_id, camera_name, self.model_path, self.confidence_threshold, self.tracker_yaml_path, aruco_positions=True)
             print("    Completed Initialization")
+<<<<<<< HEAD:MCMOTracker.py
         
     def update_camera_tracks(self):
         self.cameras[0].capture_frame()
         self.cameras[1].capture_frame()
         self.cameras[0].detect_track_and_annotate()
         self.cameras[1].detect_track_and_annotate()
+=======
+    
+    def capture_cameras_frames(self):
+        for camera in self.cameras.values():
+            camera.capture_frame()
+
+    def update_cameras_tracks(self):
+        for camera in self.cameras.values():
+            camera.detect_and_track()
+>>>>>>> 0c44626d (Reorg, Split Frame/Detect/Annotate, Overhead Plot):build/lib/mcmot/MCMOTracker.py
 
     def match_global_tracks(self):
         cam0_tracks = self.cameras[0].model_plus.detections_tracked.tracker_id.tolist()
@@ -352,26 +331,28 @@ class MCMOTracker:
         for tid in unmatched_1:
             assignments[(None, tid)] = None
 
-        
         print(assignments)
         self.global_tracks = assignments
 
-    def frame_from_cam(self,camera_number):
-        annotated_frame = self.cameras[camera_number].model_plus.frame_annotated.copy()
+    def annotated_frame_from_camera(self,camera_number):
+        af = self.cameras[camera_number].annotate_frame() # This triggers the model_plus and camera to annotate the frame
 
         # Draw Global Track Positions
         for match, point_3d in self.global_tracks.items():
             print(match, point_3d)
             if match[0] is not None and match[1] is not None:
+<<<<<<< HEAD:MCMOTracker.py
                 cam0_point = cv2.projectPoints(point_3d, self.cameras[camera_number].r, self.cameras[camera_number].t, self.cameras[camera_number].mtx, self.cameras[camera_number].dist)[0].flatten()
                 cv2.circle(annotated_frame, (int(cam0_point[0]), int(cam0_point[1])), 5, (0,0,255), -1)
+=======
+                point_3d_reshaped = point_3d.reshape(-1, 1)
+                cam0_point = cv2.projectPoints(point_3d_reshaped, self.cameras[camera_number].r, self.cameras[camera_number].t, self.cameras[camera_number].mtx, self.cameras[camera_number].dist)[0].flatten()
+                cv2.circle(af, (int(cam0_point[0]), int(cam0_point[1])), 5, (0,0,255), -1)
+>>>>>>> 0c44626d (Reorg, Split Frame/Detect/Annotate, Overhead Plot):build/lib/mcmot/MCMOTracker.py
                 p3d = point_3d.flatten()
-                cv2.putText(annotated_frame, f"{p3d[0]:.1f}, {p3d[1]:.1f}, {p3d[2]:.1f}", (int(cam0_point[0]), int(cam0_point[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+                cv2.putText(af, f"{p3d[0]:.1f}, {p3d[1]:.1f}, {p3d[2]:.1f}", (int(cam0_point[0]), int(cam0_point[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
         
-        # Draw Axis
-
-
-        return annotated_frame
+        return af
 
 
 

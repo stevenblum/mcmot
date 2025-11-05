@@ -1,6 +1,6 @@
 import sys
 import os
-from MCMOTracker import *
+from src.mcmot.MCMOTracker import *
 import util
 import supervision as sv
 from ultralytics import YOLO

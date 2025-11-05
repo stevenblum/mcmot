@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: testbed_cv
+Version: 0.0.1
+Summary: Testbed CV utilities (includes MCMOTracker classes)
+Author: Your Name
+License: MIT
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
