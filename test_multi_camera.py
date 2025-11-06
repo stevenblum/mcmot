@@ -15,13 +15,16 @@ CAMERA_NAMES = ["logitech_1","logitech_1"]
 # HOME
 
 MODEL_PATH = "LATEST"
-CAMERA_DEVICE_IDS = [4,6]  # v4l2-ctl --list-devices
+CAMERA_DEVICE_IDS = "SELECT"  # [4,6]  # v4l2-ctl --list-devices
 CAMERA_NAMES = ["logitech_1","logitech_1"]
 ARUCO_POSITIONS = "square4"  #  None
 ###################################################################
 
 if MODEL_PATH == "LATEST":
     MODEL_PATH= MCMOTUtils.find_latest_model()[0]
+
+if CAMERA_DEVICE_IDS == "SELECT":
+    CAMERA_DEVICE_IDS =  MCMOTUtils.get_camera_number(num_cameras=2)
 
 mct = MCMOTracker(MODEL_PATH,CAMERA_DEVICE_IDS,CAMERA_NAMES,confidence_threshold=.05,tracker_yaml_path="./config/bytetrack.yaml", aruco_positions=ARUCO_POSITIONS)
 mct.select_cameras()

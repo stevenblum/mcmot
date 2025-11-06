@@ -5,10 +5,13 @@ import pathlib
 import numpy as np
 
 def find_latest_model():
-    training_dir = pathlib.Path("/home/scblum/Projects/testbed_cv/saved_models")
+
+    training_dir = pathlib.Path(__file__).resolve().parent.parent.parent
+
+    print(training_dir)
 
     # Look for best.pt files in subdirectories
-    model_files = list(training_dir.glob("*/weights/best.pt"))
+    model_files = list(training_dir.rglob("*/weights/best.pt"))
     
     # Get the most recent model based on modification timeS
     latest_model = max(model_files, key=os.path.getmtime)
@@ -24,6 +27,123 @@ def find_latest_model():
     print(f"📁 Path: {latest_model}")
 
     return str(latest_model), model_name
+
+def get_camera_number(num_cameras: int = 1, max_search: int = 8, cols: int = 4, 
+                        thumb_size: tuple = (320, 240), window_name: str = "Camera Grid"):
+    """
+    Search for cameras up to max_search, display a grid of snapshots with camera indices
+    overlaid, prompt the user in the terminal to pick one or multiple indices, then
+    close windows and return the chosen index (int) for num_cameras==1 or a list of ints
+    for num_cameras>1. Returns -1 (or [] for multi) if no cameras found or cancelled.
+    """
+    import sys
+    import select
+
+    caps = []
+    frames = []
+    indices = []
+
+    # Try opening camera indices 0..max_search-1
+    for i in range(max_search):
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                thumb = cv2.resize(frame, thumb_size)
+                frames.append(thumb)
+                indices.append(i)
+                caps.append(cap)
+            else:
+                cap.release()
+        else:
+            cap.release()
+
+    if not frames:
+        print("No cameras found.")
+        return -1 if num_cameras == 1 else []
+
+    # Build grid image
+    n = len(frames)
+    rows = (n + cols - 1) // cols
+    pad_img = np.zeros((thumb_size[1], thumb_size[0], 3), dtype=np.uint8)
+    imgs = frames.copy()
+    while len(imgs) < rows * cols:
+        imgs.append(pad_img.copy())
+
+    for idx, img in enumerate(imgs[:n]):
+        cam_idx = indices[idx]
+        cv2.putText(img, str(cam_idx), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+
+    row_imgs = []
+    for r in range(rows):
+        start = r * cols
+        end = start + cols
+        row_imgs.append(np.hstack(imgs[start:end]))
+    grid = np.vstack(row_imgs)
+
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.imshow(window_name, grid)
+    cv2.waitKey(1)
+
+    print(f"Found cameras: {indices}")
+    if num_cameras == 1:
+        print("Type the camera number to select it, or press Enter to cancel.")
+    else:
+        print(f"Enter {num_cameras} camera indices (comma-separated), or press Enter to cancel.")
+
+    selected = -1 if num_cameras == 1 else []
+    try:
+        while True:
+            cv2.imshow(window_name, grid)
+            if select.select([sys.stdin], [], [], 0.1)[0]:
+                line = sys.stdin.readline().strip()
+                if line == "":
+                    selected = -1 if num_cameras == 1 else []
+                    break
+                try:
+                    if num_cameras == 1:
+                        val = int(line)
+                        if val in indices:
+                            selected = val
+                            break
+                        else:
+                            print(f"{val} not in available cameras {indices}. Try again.")
+                            continue
+                    else:
+                        parts = [p.strip() for p in line.split(",") if p.strip() != ""]
+                        vals = []
+                        for p in parts:
+                            try:
+                                v = int(p)
+                            except ValueError:
+                                v = None
+                            if v is None or v not in indices:
+                                v = None
+                                break
+                            vals.append(v)
+                        if len(vals) == num_cameras and len(set(vals)) == num_cameras:
+                            selected = vals
+                            break
+                        print(f"Please enter exactly {num_cameras} valid, unique indices from {indices}.")
+                        continue
+                except ValueError:
+                    print("Invalid input. Enter integers (comma-separated for multiple).")
+                    continue
+            if (cv2.waitKey(1) & 0xFF) == 27:
+                selected = -1 if num_cameras == 1 else []
+                break
+    except KeyboardInterrupt:
+        selected = -1 if num_cameras == 1 else []
+
+    for cap in caps:
+        cap.release()
+    cv2.destroyWindow(window_name)
+
+    if (num_cameras == 1 and selected == -1) or (num_cameras > 1 and not selected):
+        print("No selection made / cancelled.")
+    else:
+        print(f"Selected camera(s): {selected}")
+    return selected
 
 def select_cameras(num_cameras=1):
     """
@@ -157,14 +277,14 @@ class FrameRateCounter:
             fps_counter.annotate_frame(frame)
     """
     
-    def __init__(self, update_interval: int = 30):
+    def __init__(self, update_interval_frames: int = 30):
         """
         Initialize the frame rate counter.
         
         Args:
             update_interval (int): Number of frames between FPS updates. Default is 30.
         """
-        self.update_interval = update_interval
+        self.update_interval_frames = update_interval_frames
         self.frame_count = 0
         self.start_time = time.time()
         self.fps = 0.0
@@ -176,7 +296,7 @@ class FrameRateCounter:
         self.frame_count += 1
         self.total_frames += 1
         
-        if self.frame_count >= self.update_interval:
+        if self.frame_count >= self.update_interval_frames:
             elapsed_time = time.time() - self.start_time
             self.fps = self.frame_count / elapsed_time if elapsed_time > 0 else 0
             self.frame_count = 0
@@ -200,28 +320,6 @@ class FrameRateCounter:
         """
         elapsed = time.time() - self.total_start_time
         return self.total_frames / elapsed if elapsed > 0 else 0
-    
-    def annotate_frame(self, frame, position: tuple = (10, 30), 
-                      font_scale: float = 1.0, color: tuple = (0, 255, 0), 
-                      thickness: int = 2):
-        """
-        Draw the current FPS on a frame.
-        
-        Args:
-            frame: The image frame to annotate (numpy array).
-            position (tuple): (x, y) position for the text. Default is (10, 30).
-            font_scale (float): Font scale for the text. Default is 1.0.
-            color (tuple): BGR color tuple. Default is green (0, 255, 0).
-            thickness (int): Text thickness. Default is 2.
-        
-        Returns:
-            The annotated frame (modifies in place).
-        """
-        import cv2
-        text = f"FPS: {self.fps:.1f}"
-        cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, 
-                   font_scale, color, thickness)
-        return frame
     
     def reset(self):
         """Reset the frame counter."""

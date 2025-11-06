@@ -1,4 +1,5 @@
 from .ModelPlus import ModelPlus
+from . import MCMOTUtils
 import time
 import numpy as np
 import cv2
@@ -15,6 +16,8 @@ class Camera:
         self.camera_device_id = camera_device_id
         print(f"    Opening Camera on Port {camera_device_id}")
         self.cap = cv2.VideoCapture(camera_device_id)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        self.fps_counter = MCMOTUtils.FrameRateCounter()
         self.frame = None
         self.frame_dims = None #(width, height)
         self.frame_time = None
@@ -129,6 +132,7 @@ class Camera:
             self.frame_time = time.time()
 
     def detect_and_track(self):
+        self.fps_counter.tick()
         if time.time()-self.frame_time > .1:
             print("ERROR: COMPLETING camera.detect_track_and_annotate() on a frame that is more than .1s old")
 
@@ -139,6 +143,11 @@ class Camera:
         af = self.model_plus.frame_annotated.copy()
         if self.world_calibration_status:
             af= self.draw_world_axis(af)
+        
+        fps_text = f"FPS: {self.fps_counter.get_fps():.1f}"
+        af = cv2.putText(af, fps_text, (10,30), cv2.FONT_HERSHEY_SIMPLEX, 
+                   1.0, (0,225,0), 2)
+
         self.frame_annotated = af
         return af
 

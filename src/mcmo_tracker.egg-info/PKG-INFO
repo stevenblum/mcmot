@@ -15,12 +15,14 @@ Requires-Dist: ultralytics
 Requires-Dist: filterpy
 
 TODO
+- Have Global Tracks Include Color and Shape
+- Overhead Include Color/Shape
+- Overhead include Aruco Markers
 - Draw global contacts with purple
 - Utils, have model finder diplay a list of models
 - Utils, function to get Aruco positions
 - Utils, function to find cameras
 - Use one Yolo model for all cameras
-
 
 Organization
 Multi-Camera Multi-Object Tracker Library
@@ -39,9 +41,6 @@ Multi-Camera Multi-Object Tracker Library
        b) Global Tracks (dict)
        c) Cost Matrix
        d) Assignment Solver
-
-
-
 
 Heavily uses the ultralytics Supervision library because of its tracking and annotations functions
 Some important items that are not captured in the online documentation:

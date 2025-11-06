@@ -2,9 +2,9 @@
 python3 --version
 cd /home/scblum/Projects/testbed_cv
 python3 -m venv-testbed-cv ./.venv-testbed-cv
-source .venv-testbed-cv/bin/activate
+source .venv/bin/activate
 pip install --upgrade pip
-pip install ultralytics supervision cv2
+pip install ultralytics supervision opencv-python
 
 
 # Need a Seperate Virtul Environment for CVAT Automatic Annotation
