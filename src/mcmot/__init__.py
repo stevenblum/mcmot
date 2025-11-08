@@ -4,7 +4,7 @@ from ._version import version
 from .Camera import Camera
 from .MCMOTracker import MCMOTracker
 from .ModelPlus import ModelPlus
-from . import MCMOTUtils
+from .MCMOTUtils import MCMOTUtils
 
 __all__ = [
     "version",

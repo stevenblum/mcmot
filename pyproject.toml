@@ -25,4 +25,4 @@ dependencies = [
 where = ["src"]
 
 [project.urls]
-Homepage = "https://github.com/stevenblum/mcmo-tracker"
+Homepage = "https://github.com/stevenblum/mcmot"

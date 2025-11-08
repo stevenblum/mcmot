@@ -1,2 +1,0 @@
-[console_scripts]
-mcmo-tracker = testbed_cv.MCMOTracker:main
