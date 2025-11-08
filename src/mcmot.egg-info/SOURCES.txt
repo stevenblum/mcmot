@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/mcmot/Camera.py
+src/mcmot/CameraTrack.py
+src/mcmot/MCMOTUtils.py
+src/mcmot/MCMOTracker.py
+src/mcmot/ModelPlus.py
+src/mcmot/MultiCameraTrack.py
+src/mcmot/__init__.py
+src/mcmot/_version.py
+src/mcmot/init.py
+src/mcmot.egg-info/PKG-INFO
+src/mcmot.egg-info/SOURCES.txt
+src/mcmot.egg-info/dependency_links.txt
+src/mcmot.egg-info/requires.txt
+src/mcmot.egg-info/top_level.txt

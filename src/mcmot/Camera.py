@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 from ultralytics import YOLO
 import supervision as sv
-from config.aruco_config import ArucoConfig
+from .config import ArucoConfig
 
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_1000)
 detector = cv2.aruco.ArucoDetector(aruco_dict)

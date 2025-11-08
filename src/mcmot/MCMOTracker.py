@@ -1,12 +1,12 @@
 from .Camera import Camera
 from .ModelPlus import ModelPlus
 from . import MCMOTUtils
+from .config import ArucoConfig
 import time
 import numpy as np
 import cv2
 from ultralytics import YOLO
 import supervision as sv
-from config.aruco_config import ArucoConfig
 import matplotlib.pyplot as plt
 from io import BytesIO
 
@@ -29,7 +29,7 @@ class MCMOTracker:
     def select_cameras(self):
         # Show image from all available cameras
         # todo
-        #selected_cameras = util.select_cameras(2)
+        # selected_cameras = util.select_cameras(2)
 
 
         for camera_number, camera_device_id in enumerate(self.camera_device_ids):
@@ -215,7 +215,7 @@ class MCMOTracker:
                         continue
                     point,color,shape = values
                     p = np.array(point).flatten()
-                    if shape is "square":
+                    if shape == "square":
                         marker_type = "s"
                     else:
                         marker_type = "o"
