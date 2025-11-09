@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 
 class MCMOTracker:
-    def __init__(self, model_path,camera_device_ids,camera_names,confidence_threshold,tracker_yaml_path, aruco_positions):
+    def __init__(self, model_path,camera_device_ids,camera_names,confidence_threshold=.1,tracker_yaml_path="./config/bytetrack.yaml", aruco_positions=None):
         self.model_path = model_path
         self.tracker_yaml_path = tracker_yaml_path
         self.camera_device_ids = camera_device_ids
@@ -30,7 +30,6 @@ class MCMOTracker:
         # Show image from all available cameras
         # todo
         # selected_cameras = util.select_cameras(2)
-
 
         for camera_number, camera_device_id in enumerate(self.camera_device_ids):
             print(f"Initializing Camera {camera_number} - Port {camera_device_id} - {self.camera_names[camera_number]}")
@@ -181,7 +180,7 @@ class MCMOTracker:
         return color,shape
 
 
-    def annotated_frame_from_camera(self,camera_number):
+    def annotated_frame_from_camera(self, camera_number):
         af = self.cameras[camera_number].annotate_frame() # This triggers the model_plus and camera to annotate the frame
 
         # Draw Global Track Positions
