@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 
 class MCMOTracker:
-    def __init__(self, model_path,camera_device_ids,camera_names,confidence_threshold=.1,tracker_yaml_path="./config/bytetrack.yaml", aruco_positions=None):
+    def __init__(self, model_path,camera_device_ids,camera_names,confidence_threshold=.1,tracker_yaml_path="./config/bytetrack.yaml", aruco_positions=None,display=False):
         self.model_path = model_path
         self.tracker_yaml_path = tracker_yaml_path
         self.camera_device_ids = camera_device_ids
@@ -25,6 +25,9 @@ class MCMOTracker:
         self.next_gtid = 0
         self.next_track_id = 0
         self.overhead_plot = None
+        self.display = display
+        if display is True:
+            cv2.namedWindow("Overhead View", cv2.WINDOW_NORMAL)
 
     def select_cameras(self):
         # Show image from all available cameras
@@ -223,7 +226,6 @@ class MCMOTracker:
                         ax.scatter(p[0], p[1], s=70, c=color, marker=marker_type,label='Detections' if first else "")
                         first = False
 
-
             # Plot each camera's FOV
             for cam_id, cam in self.cameras.items():
                 fov = cam.compute_fov_on_ground()
@@ -244,7 +246,15 @@ class MCMOTracker:
 
             self.overhead_plot = img
             return self.overhead_plot 
+    
+    def update_displays(self):
+        for camera in self.cameras.values():
+            camera.annotate_frame()
+            camera.display_frame()
 
+        self.plot_overhead()
+        cv2.imshow("Overhead View", self.overhead_plot)
+        cv2.waitKey(1)
 
 '''
         # Rematch old matches first

@@ -11,7 +11,7 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_1000)
 detector = cv2.aruco.ArucoDetector(aruco_dict)
 
 class Camera:    
-    def __init__(self, camera_number, camera_device_id, camera_name, model_path, confidence_threshold, tracker_yaml_path, aruco_positions):
+    def __init__(self, camera_number, camera_device_id, camera_name, model_path, confidence_threshold, tracker_yaml_path, aruco_positions,display=True):
         self.camera_number = camera_number
         self.camera_device_id = camera_device_id
         print(f"    Opening Camera on Port {camera_device_id}")
@@ -28,6 +28,10 @@ class Camera:
         self.world_calibration_status = False
         self.world_axis_c = None
         self.fov_ground_pts = None
+
+        if display:
+            self.display_window_name = f"Camera {self.camera_name}"
+            cv2.namedWindow(self.display_window_name, cv2.WINDOW_NORMAL)
 
         self.model_plus = ModelPlus(model_path, confidence_threshold, tracker_yaml_path)
         self.set_intrinsics()
@@ -150,6 +154,11 @@ class Camera:
 
         self.frame_annotated = af
         return af
+    
+    def display_frame(self):
+        if self.display_window_name:
+            cv2.imshow(self.display_window_name, self.frame_annotated)
+            cv2.waitKey(1)
 
     def draw_world_axis(self, frame):
         if self.world_axis_c == None:
