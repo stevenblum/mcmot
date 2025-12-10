@@ -5,7 +5,7 @@ import supervision as sv
 
 class ModelPlus:
     def __init__(self, model_path, confidence_threshold, tracking_yaml_path):
-        if model_path is "LATEST":
+        if model_path == "LATEST":
             model_path = MCMOTUtils.find_latest_model()
         self.model = YOLO(model_path,verbose=False)
         self.tracker = sv.ByteTrack(frame_rate=25)

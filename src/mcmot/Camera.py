@@ -11,7 +11,7 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_1000)
 detector = cv2.aruco.ArucoDetector(aruco_dict)
 
 class Camera:    
-    def __init__(self, camera_number, camera_device_id, camera_name, model_path, confidence_threshold, tracker_yaml_path, aruco_positions,display=True):
+    def __init__(self, camera_number, camera_device_id, camera_name, model_path=None, confidence_threshold=None, tracker_yaml_path=None, aruco_positions=None, display=True):
         self.camera_number = camera_number
         self.camera_device_id = camera_device_id
         print(f"    Opening Camera on Port {camera_device_id}")
@@ -29,13 +29,13 @@ class Camera:
         self.world_axis_c = None
         self.fov_ground_pts = None
 
-        if display:
-            self.display_window_name = f"Camera {self.camera_name}"
-            cv2.namedWindow(self.display_window_name, cv2.WINDOW_NORMAL)
-
-        self.model_plus = ModelPlus(model_path, confidence_threshold, tracker_yaml_path)
         self.set_intrinsics()
 
+        if model_path == None:
+            self.model_plus = None
+        else:
+            self.model_plus = ModelPlus(model_path, confidence_threshold, tracker_yaml_path)
+        
         if aruco_positions == None:
             self.aruco_positions = None
         else:
@@ -47,6 +47,10 @@ class Camera:
             self.set_extrinsics()
             self.world_calibration_status = True
             self.compute_fov_on_ground()
+
+        if display:
+            self.display_window_name = f"Camera {self.camera_name}"
+            cv2.namedWindow(self.display_window_name, cv2.WINDOW_NORMAL)
 
     def set_intrinsics(self):
         calibration_data = np.load(f"./config/camera_calibration/{self.camera_name}/{self.camera_name}.npz")
@@ -134,6 +138,8 @@ class Camera:
         ret, self.frame = self.cap.read()
         if ret:
             self.frame_time = time.time()
+            self.annotated_frame = self.frame.copy()
+
 
     def detect_and_track(self):
         self.fps_counter.tick()

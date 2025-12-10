@@ -1,6 +1,7 @@
 # YOLO Weight files
 *.pt
 *__pycache__*
+*/SOURCES.txt
 
 /.venv
 /.venv5
@@ -9,6 +10,9 @@
 /raw_images
 /saved_models
 /dataset_archive*
+/oak_tests/yolo
+/oak_tests/tools
+
 
 # Python.gitignore from Templates
 # https://github.com/github/gitignore/blob/main/Python.gitignore
@@ -37,6 +41,7 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
+*/*.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
