@@ -3,8 +3,13 @@ import os
 import time
 import pathlib
 import numpy as np
+import subprocess
+import shutil
+import sys
 
 class MCMOTUtils:
+    _highgui_available = None
+
     def __init__(self):
         pass
         
@@ -16,6 +21,12 @@ class MCMOTUtils:
 
         # Look for best.pt files in subdirectories
         model_files = list(training_dir.rglob("*/weights/best.pt"))
+        if not model_files:
+            raise FileNotFoundError(
+                "No model weights found. Expected at least one file matching "
+                f"'*/weights/best.pt' under: {training_dir}. "
+                "Set MODEL_PATH to an explicit .pt file path or train/export a model first."
+            )
         
         # Get the most recent model based on modification timeS
         latest_model = max(model_files, key=os.path.getmtime)
@@ -31,6 +42,132 @@ class MCMOTUtils:
         print(f"📁 Path: {latest_model}")
 
         return str(latest_model), model_name
+
+    def has_highgui():
+        """Return True when OpenCV HighGUI window APIs are usable in this session."""
+        if MCMOTUtils._highgui_available is not None:
+            return MCMOTUtils._highgui_available
+
+        try:
+            build_info = cv2.getBuildInformation()
+            gui_line = next(
+                (line.strip() for line in build_info.splitlines() if line.strip().startswith("GUI:")),
+                "GUI: NONE",
+            )
+        except Exception:
+            gui_line = "GUI: NONE"
+
+        if "NONE" in gui_line.upper():
+            MCMOTUtils._highgui_available = False
+            return MCMOTUtils._highgui_available
+
+        if os.environ.get("MCMOT_FORCE_NO_GUI", "").strip().lower() in {"1", "true", "yes"}:
+            MCMOTUtils._highgui_available = False
+            return MCMOTUtils._highgui_available
+
+        display = os.environ.get("DISPLAY")
+        wayland_display = os.environ.get("WAYLAND_DISPLAY")
+        if not display and not wayland_display:
+            MCMOTUtils._highgui_available = False
+            return MCMOTUtils._highgui_available
+
+        # For X11, verify this shell can actually connect to the display.
+        # Avoid cv2.namedWindow() probing because Qt can abort the process on failure.
+        if display:
+            if not MCMOTUtils._x11_display_accessible(display):
+                MCMOTUtils._highgui_available = False
+                return MCMOTUtils._highgui_available
+        elif wayland_display and not MCMOTUtils._wayland_display_accessible(wayland_display):
+            MCMOTUtils._highgui_available = False
+            return MCMOTUtils._highgui_available
+
+        # Final runtime probe in a subprocess so Qt/xcb aborts do not crash the main process.
+        if not MCMOTUtils._probe_highgui_subprocess():
+            MCMOTUtils._highgui_available = False
+            return MCMOTUtils._highgui_available
+
+        MCMOTUtils._highgui_available = True
+        return MCMOTUtils._highgui_available
+
+    @staticmethod
+    def _probe_highgui_subprocess(timeout_sec=4):
+        if os.environ.get("MCMOT_SKIP_GUI_PROBE", "").strip().lower() in {"1", "true", "yes"}:
+            return True
+
+        probe = (
+            "import cv2, numpy as np\n"
+            "img=np.zeros((8,8,3),dtype=np.uint8)\n"
+            "cv2.namedWindow('__mcmot_probe__', cv2.WINDOW_NORMAL)\n"
+            "cv2.imshow('__mcmot_probe__', img)\n"
+            "cv2.waitKey(1)\n"
+            "cv2.destroyWindow('__mcmot_probe__')\n"
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", probe],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=timeout_sec,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def _x11_display_accessible(display):
+        xset_path = shutil.which("xset")
+        if xset_path is not None:
+            try:
+                result = subprocess.run(
+                    [xset_path, "q"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+                return result.returncode == 0
+            except Exception:
+                return False
+
+        # Fallback when xset is unavailable: check local X11 socket presence.
+        token = display.split(".")[0]
+        if token.startswith(":"):
+            display_num = token[1:]
+            if display_num.isdigit():
+                socket_path = pathlib.Path("/tmp/.X11-unix") / f"X{display_num}"
+                return socket_path.exists()
+        return False
+
+    @staticmethod
+    def _wayland_display_accessible(wayland_display):
+        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+        if not runtime_dir:
+            return False
+        socket_path = pathlib.Path(runtime_dir) / wayland_display
+        return socket_path.exists()
+
+    def _parse_camera_input(line, indices, num_cameras):
+        if num_cameras == 1:
+            try:
+                value = int(line)
+            except ValueError:
+                return None
+            return value if value in indices else None
+
+        parts = [p.strip() for p in line.split(",") if p.strip() != ""]
+        values = []
+        for p in parts:
+            try:
+                v = int(p)
+            except ValueError:
+                return None
+            if v not in indices:
+                return None
+            values.append(v)
+
+        if len(values) != num_cameras or len(set(values)) != num_cameras:
+            return None
+        return values
 
     def get_camera_number(num_cameras: int = 1, max_search: int = 8, cols: int = 4, 
                             thumb_size: tuple = (320, 240), window_name: str = "Camera Grid"):
@@ -66,6 +203,8 @@ class MCMOTUtils:
             print("No cameras found.")
             return -1 if num_cameras == 1 else []
 
+        highgui_available = MCMOTUtils.has_highgui()
+
         # Build grid image
         n = len(frames)
         rows = (n + cols - 1) // cols
@@ -85,9 +224,15 @@ class MCMOTUtils:
             row_imgs.append(np.hstack(imgs[start:end]))
         grid = np.vstack(row_imgs)
 
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-        cv2.imshow(window_name, grid)
-        cv2.waitKey(1)
+        if highgui_available:
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+            cv2.imshow(window_name, grid)
+            cv2.waitKey(1)
+        else:
+            print(
+                "OpenCV HighGUI window support is unavailable. "
+                "Falling back to terminal-only camera selection."
+            )
 
         print(f"Found cameras: {indices}")
         if num_cameras == 1:
@@ -96,6 +241,29 @@ class MCMOTUtils:
             print(f"Enter {num_cameras} camera indices (comma-separated), or press Enter to cancel.")
 
         selected = -1 if num_cameras == 1 else []
+        if not highgui_available:
+            while True:
+                line = input("> ").strip()
+                if line == "":
+                    break
+                parsed = MCMOTUtils._parse_camera_input(line, indices, num_cameras)
+                if parsed is None:
+                    if num_cameras == 1:
+                        print(f"Enter one valid camera index from: {indices}")
+                    else:
+                        print(f"Enter exactly {num_cameras} valid, unique indices from: {indices}")
+                    continue
+                selected = parsed
+                break
+
+            for cap in caps:
+                cap.release()
+            if (num_cameras == 1 and selected == -1) or (num_cameras > 1 and not selected):
+                print("No selection made / cancelled.")
+            else:
+                print(f"Selected camera(s): {selected}")
+            return selected
+
         try:
             while True:
                 cv2.imshow(window_name, grid)
@@ -104,35 +272,12 @@ class MCMOTUtils:
                     if line == "":
                         selected = -1 if num_cameras == 1 else []
                         break
-                    try:
-                        if num_cameras == 1:
-                            val = int(line)
-                            if val in indices:
-                                selected = val
-                                break
-                            else:
-                                print(f"{val} not in available cameras {indices}. Try again.")
-                                continue
-                        else:
-                            parts = [p.strip() for p in line.split(",") if p.strip() != ""]
-                            vals = []
-                            for p in parts:
-                                try:
-                                    v = int(p)
-                                except ValueError:
-                                    v = None
-                                if v is None or v not in indices:
-                                    v = None
-                                    break
-                                vals.append(v)
-                            if len(vals) == num_cameras and len(set(vals)) == num_cameras:
-                                selected = vals
-                                break
-                            print(f"Please enter exactly {num_cameras} valid, unique indices from {indices}.")
-                            continue
-                    except ValueError:
-                        print("Invalid input. Enter integers (comma-separated for multiple).")
+                    parsed = MCMOTUtils._parse_camera_input(line, indices, num_cameras)
+                    if parsed is None:
+                        print("Invalid input. Enter valid camera index/indices.")
                         continue
+                    selected = parsed
+                    break
                 if (cv2.waitKey(1) & 0xFF) == 27:
                     selected = -1 if num_cameras == 1 else []
                     break
@@ -155,6 +300,13 @@ class MCMOTUtils:
         prompt the user to select which camera indices to use,
         and return the selected indices as a list of ints.
         """
+        if not MCMOTUtils.has_highgui():
+            print("OpenCV HighGUI is unavailable; using terminal-only camera selection.")
+            selected = MCMOTUtils.get_camera_number(num_cameras=num_cameras)
+            if num_cameras == 1:
+                return [] if selected == -1 else [selected]
+            return selected
+
         print(f"Scanning for up to {num_cameras} cameras...")
         caps = []
         window_names = []

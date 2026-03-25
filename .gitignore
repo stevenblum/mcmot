@@ -13,6 +13,14 @@
 /oak_tests/yolo
 /oak_tests/tools
 
+# Large generated media/datasets (keep out of git history)
+/ned2_pose/*.mp4
+/ned2_pose/images/
+/ned2_pose_dataset/
+/ned2_pose_train_results/
+/cvat.db.dump
+/ned2_pose_viz.html
+
 
 # Python.gitignore from Templates
 # https://github.com/github/gitignore/blob/main/Python.gitignore
@@ -234,3 +242,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Frontend
+webui/node_modules/
+webui/dist/

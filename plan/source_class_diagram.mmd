@@ -1,0 +1,186 @@
+classDiagram
+    %% Source analyzed: src/mcmot/**/*.py
+    %% Inheritance: none
+
+    class MCMOTracker {
+        +model_path
+        +tracker_yaml_path
+        +camera_device_ids
+        +camera_names
+        +aruco_positions
+        +confidence_threshold
+        +calibration_method
+        +cameras
+        +global_tracks
+        +camera_tracks
+        +overhead_plot
+        +display
+        +gui_available
+        +mesh_display
+        +mesh_update_interval_sec
+        +mesh_export_path
+        +mesh_stereo_matcher
+        +scene_mesh
+        +select_cameras()
+        +calibrate_auto(baseline=1.0)
+        +capture_cameras_frames()
+        +update_cameras_tracks()
+        +match_global_tracks()
+        +class2colorshape(class_list)
+        +annotated_frame_from_camera(camera_number)
+        +plot_overhead(save_path=None)
+        +update_scene_mesh_display(force=False)
+        +update_displays()
+    }
+
+    class Camera {
+        +camera_number
+        +camera_device_id
+        +camera_name
+        +cap
+        +fps_counter
+        +frame
+        +frame_dims
+        +frame_time
+        +frame_annotated
+        +mtx
+        +dist
+        +calibration_method
+        +world_calibration_status
+        +is_ground_referenced
+        +rvec
+        +tvec
+        +r
+        +t
+        +Rt
+        +projMatrix
+        +aruco_positions
+        +aruco_config
+        +model_plus
+        +display_window_name
+        +gui_available
+        +set_intrinsics()
+        +set_extrinsics(reference_camera=None, auto_baseline=1.0)
+        +set_extrinsics_from_rt(R, tvec, world_calibrated=True)
+        +cal_aruco()
+        +cal_landmarks()
+        +cal_auto(reference_camera, baseline=1.0, max_trials=25, min_inliers=30)
+        +capture_frame()
+        +detect_and_track()
+        +annotate_frame()
+        +display_frame()
+        +draw_world_axis(frame)
+        +transform_w2c(points3d_world)
+        +compute_fov_on_ground(ground_z=0.0)
+    }
+
+    class StereoCamera {
+        +primary
+        +secondary
+        +display
+        +calibrated
+        +R
+        +t
+        +P1
+        +P2
+        +R1
+        +R2
+        +P1_rect
+        +P2_rect
+        +Q
+        +map1x
+        +map1y
+        +map2x
+        +map2y
+        +stereo_matcher
+        +load_primary_intrinsics(npz_path)
+        +load_secondary_intrinsics(npz_path)
+        +capture_frames()
+        +display_frames()
+        +calibrate_from_scene(max_matches=2000, ransac_threshold=1.0, display_matches=False)
+        +compute_depth_map(normalize_for_display=True, return_depth_m=False)
+        +display_depth_map(window_name='Stereo Depth')
+    }
+
+    class ModelPlus {
+        +model
+        +tracker
+        +annotator_tracks
+        +annotator_detections
+        +annotator_track_tails
+        +frame
+        +frame_annotated
+        +detections
+        +detections_tracked
+        +confidence_threshold
+        +detect_and_track(frame)
+        +annotate_frame()
+    }
+
+    class CameraTrack {
+        +camera_number
+        +track_id
+        +bbox
+        +center
+        +score
+        +class_id
+        +update(bbox, score)
+    }
+
+    class MultiCameraTrack {
+        +last_camera_match
+        +set_match(camera_tracks)
+    }
+
+    class ArucoConfig {
+        +config_name
+        +aruco_dict
+        +parameters
+        +detector
+        +marker_size
+        +placement_name
+        +marker_positions
+    }
+
+    class MCMOTUtils {
+        +_highgui_available
+        +find_latest_model()
+        +has_highgui()
+        +_x11_display_accessible(display)
+        +_wayland_display_accessible(wayland_display)
+        +_parse_camera_input(line, indices, num_cameras)
+        +get_camera_number(num_cameras=1, max_search=8, cols=4, thumb_size=(320,240), window_name='Camera Grid')
+        +select_cameras(num_cameras=1)
+        +plot_detections(frame, detections, class_names, type)
+        +yolo_to_xyxy(box, img_w, img_h)
+        +yolo_to_xyxy_conf_cls(boxes, img_w, img_h)
+    }
+
+    class FrameRateCounter {
+        +update_interval_frames
+        +frame_count
+        +start_time
+        +fps
+        +total_start_time
+        +total_frames
+        +tick()
+        +get_fps()
+        +get_average_fps()
+        +reset()
+    }
+
+    MCMOTracker o-- Camera : cameras
+    MCMOTracker ..> MCMOTUtils : has_highgui()
+    MCMOTracker ..> CameraTrack : camera_tracks
+
+    Camera *-- ModelPlus : model_plus
+    Camera *-- FrameRateCounter : fps_counter
+    Camera ..> ArucoConfig : cal_aruco()
+    Camera ..> MCMOTUtils : has_highgui()
+
+    StereoCamera *-- Camera : primary
+    StereoCamera *-- Camera : secondary
+
+    ModelPlus ..> MCMOTUtils : find_latest_model()
+    MultiCameraTrack ..> CameraTrack : set_match(camera_tracks)
+    MCMOTUtils *-- FrameRateCounter : nested class

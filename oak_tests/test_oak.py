@@ -1,11 +1,29 @@
 #!/usr/bin/env python3
 '''
+
+YOLO Model Conversion to RVC2 for DepthAI:
 Online Hub AI: https://hub.luxonis.com/ai/models
-Uploaded yolo11 .pt file
-Converted it to RCV2, entered classes, in advanced options selected create .blob
-In depthai API image sizes are WxH, while in the converter it asks for HxW
-The "blob" option put it into "legacy" mode, unsure if this is necessary
-Downloaded the .tar.xz, this is the "achive" file that contains the model and metadata
+Create a model, make sure to enter the class names
+Create a "variant", select YOLO and upload the .pt file
+"Convert" it to RCV2, in the converter it asks for HxW (opposite of depthai api)
+Downloaded the .tar.xz, this is the "achiveNN" file that contains the model and metadata
+
+DepthAI Python API Version 3:
+https://docs.luxonis.com/software-v3/depthai/api/python/#depthai.NNModelDescription
+
+Detection Newtork (Replaced Yolo/MobileNet Neural Networks in v2):
+https://docs.luxonis.com/software-v3/depthai/examples/detection_network/detection_network/
+
+Patial Detection Network:
+https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/spatial_detection_network/#SpatialDetectionNetwork-Reference
+
+Camera Node:
+https://docs.luxonis.com/software-v3/depthai/depthai-components/nodes/camera/
+
+Visualize Pipeline as Graph:
+https://docs.luxonis.com/software-v3/depthai/tools/pipeline-graph/
+
+
 '''
 
 from pathlib import Path

@@ -35,3 +35,42 @@ Format of sv.Detections, all properties are stored in lists, length of n detecti
     class_id: [cls1, cls2,...]  # list of class IDs
     tracker_id: [tid1, tid2,...]  # list of tracker IDs (after tracking)
     data: a dictonary of any other user data, not currently used
+
+## FastAPI + Vue control plane
+
+Backend API (FastAPI) is available at `mcmot.api.app`.
+
+Run backend:
+
+```bash
+python3 run_mcmot_api.py
+```
+
+or
+
+```bash
+PYTHONPATH=src uvicorn mcmot.api.app:app --host 0.0.0.0 --port 8000
+```
+
+Useful endpoints:
+
+- `GET /api/health`
+- `GET /api/session/status`
+- `POST /api/session/start`
+- `POST /api/session/stop`
+- `POST /api/session/recalibrate`
+- `GET /api/frame/{stream}.jpg`
+- `GET /api/stream/{stream}.mjpeg`
+- `WS /ws/events`
+
+Vue frontend is in `webui/`.
+
+Run frontend:
+
+```bash
+cd webui
+npm install
+npm run dev
+```
+
+By default Vite proxies `/api` and `/ws` to `http://localhost:8000`.
